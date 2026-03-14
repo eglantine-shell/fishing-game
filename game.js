@@ -37,7 +37,7 @@
 
   function renderStart() {
     setView(`
-      <div class="view">
+      <div class="view startView">
         <div class="card">
           <h1 class="h1">${escapeHtml(copy.start.title)}</h1>
           <p class="p">${escapeHtml(copy.start.intro).replaceAll("\\n","<br/>")}</p>
@@ -75,14 +75,12 @@
           </div>
         </div>
 
-        <div class="tagArea" id="tagArea"></div>
+        <div class="tagArea" id="tagArea">
+          <button class="btn primary tagEndBtn" id="btnEnd">${escapeHtml(level.endText)}</button>
+        </div>
 
         <div class="card hint" id="hint">
           点击标签，偷回一点点时间。
-        </div>
-
-        <div class="endBtnWrap">
-          <button class="btn primary" id="btnEnd">${escapeHtml(level.endText)}</button>
         </div>
       </div>
     `);
@@ -93,7 +91,6 @@
     const counterText = document.getElementById("counterText");
     const btnEnd = document.getElementById("btnEnd");
 
-    // 结束按钮：remaining==0 才显示
     function syncEndBtn() {
       if (state.remaining === 0) btnEnd.classList.add("show");
       else btnEnd.classList.remove("show");
@@ -111,12 +108,10 @@
     syncProgress();
 
     btnEnd.onclick = () => {
-      if (state.remaining > 0) return; // 强制规则
-      // M0：只有一关，结束后进结算占位
+      if (state.remaining > 0) return;
       renderSummary();
     };
 
-    // 生成散落标签（简单避重叠：用网格+随机扰动）
     const ids = level.tagPool.map(x => x.id);
     const chips = ids.map(id => window.tagsById[id]).filter(Boolean);
 
