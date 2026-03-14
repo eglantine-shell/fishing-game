@@ -1,7 +1,6 @@
 (function () {
   const app = document.getElementById("app");
 
-  // ---------- util ----------
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
   const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -13,9 +12,9 @@
       levelIndex: 0,
       levelId: level.id,
       quota: level.quota,
-      used: 0,                 // 总点击次数（含超时）
-      remaining: level.quota,  // 剩余配额（不会变负）
-      overtimeClicks: 0,       // remaining==0 之后才累积
+      used: 0,
+      remaining: level.quota,
+      overtimeClicks: 0,
       overtimeThreshold: randInt(a, b),
       warningCount: 0,
       finalHourWarning: false,
@@ -24,13 +23,12 @@
         warnings: []
       },
       lastTagText: null,
-      quitFrom: null // "modal" | "summary"
+      quitFrom: null
     };
   }
 
   let state = resetState();
 
-  // ---------- render helpers ----------
   function setView(html) {
     app.innerHTML = html;
   }
@@ -43,8 +41,6 @@
           <p class="p">${escapeHtml(copy.start.intro).replaceAll("\\n","<br/>")}</p>
         </div>
         <button class="btn primary" id="btnStart">${escapeHtml(copy.start.cta)}</button>
-        <div style="flex:1"></div>
-        <p class="p" style="opacity:.7">v0.1 / M0：Start → 地铁通勤 → 结算占位</p>
       </div>
     `);
 
@@ -76,7 +72,9 @@
         </div>
 
         <div class="tagArea" id="tagArea">
-          <button class="btn primary tagEndBtn" id="btnEnd">${escapeHtml(level.endText)}</button>
+          <div class="endBtnWrap">
+            <button class="btn primary" id="btnEnd">${escapeHtml(level.endText)}</button>
+          </div>
         </div>
 
         <div class="card hint" id="hint">
@@ -115,25 +113,12 @@
     const ids = level.tagPool.map(x => x.id);
     const chips = ids.map(id => window.tagsById[id]).filter(Boolean);
 
-    const positions = genPositions(chips.length);
-    chips.forEach((tag, i) => {
-      const chip = document.createElement("button");
-      chip.className = "chip";
-      chip.textContent = tag.text;
-
-      chip.style.left = positions[i].left + "%";
-      chip.style.top = positions[i].top + "%";
-
-      chip.onclick = () => {
-        onTagClick(level, tag, hint, syncProgress, syncEndBtn);
-      };
-
-      tagArea.appendChild(chip);
+    placeChipsInGrid(tagArea, chips, (tag) => {
+      onTagClick(level, tag, hint, syncProgress, syncEndBtn);
     });
   }
 
   function onTagClick(level, tag, hintEl, syncProgress, syncEndBtn) {
-    // 记录动作
     state.used += 1;
 
     if (state.remaining > 0) {
@@ -156,7 +141,6 @@
     syncProgress();
     syncEndBtn();
 
-    // 超时触发警告
     if (state.remaining === 0 && state.overtimeClicks >= state.overtimeThreshold) {
       triggerWarning(level);
     }
@@ -180,7 +164,6 @@
       quitText: copy.modal.quit,
       onOk: () => {
         closeModal();
-        // M0：只有一关，警告确认后直接进入结算占位
         renderSummary();
       },
       onQuit: () => {
@@ -236,9 +219,6 @@
           <button class="btn primary" id="btnRestart">${escapeHtml(copy.summary.restart)}</button>
           <button class="btn" id="btnQuit">${escapeHtml(copy.summary.quit)}</button>
         </div>
-
-        <div style="flex:1"></div>
-        <p class="p" style="opacity:.7">M0：结算页先占位，后续会换成完整 SummaryView。</p>
       </div>
     `);
 
@@ -249,50 +229,57 @@
     };
   }
 
-    function renderQuit() {
+  function renderQuit() {
     const text = state.quitFrom === "modal" ? copy.quit.early : copy.quit.after;
 
     setView(`
-        <div class="view">
+      <div class="view">
         <div class="card">
-            <h1 class="h1">辞职</h1>
-            <p class="p">${escapeHtml(text).replaceAll("\\n","<br/>")}</p>
+          <h1 class="h1">辞职</h1>
+          <p class="p">${escapeHtml(text).replaceAll("\\n","<br/>")}</p>
         </div>
         <div style="flex:1"></div>
         <p class="p" style="opacity:.7">（游戏已结束）</p>
-        </div>
+      </div>
     `);
-    }
+  }
 
-  function genPositions(n) {
-    // 简单方案：3列网格 + 随机扰动，基本不会重叠
-    const cols = 3;
-    const rows = Math.ceil(n / cols);
-    const res = [];
+  function placeChipsInGrid(container, chips, onClick) {
+    const cellW = window.innerWidth <= 640 ? 150 : 180;
+    const cellH = window.innerWidth <= 640 ? 90 : 100;
 
-    for (let i = 0; i < n; i++) {
-      const r = Math.floor(i / cols);
-      const c = i % cols;
+    const startX = 18;
+    const startY = 18;
 
-      const baseLeft = 10 + c * 30; // 10, 40, 70
-      const baseTop = 8 + r * (80 / Math.max(rows, 1)); // 均匀铺
+    const containerWidth = container.clientWidth;
+    const bottomReserved = window.innerWidth <= 640 ? 100 : 110;
 
-      const jitterL = (Math.random() * 10) - 5; // -5~+5
-      const jitterT = (Math.random() * 10) - 5;
+    const usableWidth = containerWidth - startX * 2;
+    const cols = Math.max(2, Math.floor(usableWidth / cellW));
 
-      res.push({
-        left: clamp(baseLeft + jitterL, 4, 80),
-        top: clamp(baseTop + jitterT, 4, 84)
-      });
-    }
+    chips.forEach((tag, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
 
-    // 再随机打散顺序，让“散落感”更强
-    for (let i = res.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [res[i], res[j]] = [res[j], res[i]];
-    }
+      const chip = document.createElement("button");
+      chip.className = "chip";
+      chip.textContent = tag.text;
 
-    return res;
+      const left = startX + col * cellW;
+      const top = startY + row * cellH;
+
+      chip.style.left = `${left}px`;
+      chip.style.top = `${top}px`;
+
+      chip.onclick = () => onClick(tag);
+
+      container.appendChild(chip);
+    });
+
+    const rows = Math.ceil(chips.length / cols);
+    const neededHeight = startY + rows * cellH + bottomReserved;
+    const minHeight = window.innerWidth <= 640 ? 380 : 420;
+    container.style.minHeight = `${Math.max(minHeight, neededHeight)}px`;
   }
 
   function escapeHtml(str) {
@@ -304,6 +291,5 @@
       .replaceAll("'", "&#039;");
   }
 
-  // boot
   renderStart();
 })();
