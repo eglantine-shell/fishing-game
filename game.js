@@ -260,23 +260,6 @@
     `);
   }
 
-  function estimateChipSize(text, tagAreaWidth) {
-    const isMobile = window.innerWidth <= 640;
-    const fontSize = isMobile ? 16.5 : 16.5;
-    const padX = isMobile ? 18 : 18;
-    const padY = isMobile ? 15 : 15;
-    const border = 2;
-
-    const charWidth = fontSize * 1.05;
-    let width = Math.ceil(text.length * charWidth + padX * 2 + border * 2);
-    const maxWidth = Math.floor(tagAreaWidth * (isMobile ? 0.6 : 0.42));
-    width = Math.min(width, maxWidth);
-
-    const height = Math.ceil(fontSize * 1.4 + padY * 2 + border * 2);
-
-    return { width, height };
-  }
-
   function rectsOverlap(a, b, gap = 12) {
     return !(
       a.x + a.width + gap < b.x ||
@@ -286,95 +269,182 @@
     );
   }
 
-  function genNonOverlappingPositions(chips, tagArea, btnEnd) {
+  function rectsOverlap(a, b, gap = 12) {
+    return !(
+      a.x + a.width + gap <= b.x ||
+      b.x + b.width + gap <= a.x ||
+      a.y + a.height + gap <= b.y ||
+      b.y + b.height + gap <= a.y
+    );
+  }
+
+  function measureChip(tagText, tagArea) {
+    const temp = document.createElement("button");
+    temp.className = "chip";
+    temp.textContent = tagText;
+    temp.style.left = "-9999px";
+    temp.style.top = "-9999px";
+    temp.style.visibility = "hidden";
+
+    tagArea.appendChild(temp);
+    const rect = temp.getBoundingClientRect();
+    temp.remove();
+
+    return {
+      width: Math.ceil(rect.width),
+      height: Math.ceil(rect.height)
+    };
+  }
+
+  function layoutChipsWithRealMeasure(tags, tagArea, btnEnd) {
     const areaRect = tagArea.getBoundingClientRect();
-    const areaWidth = areaRect.width;
-    const areaHeight = areaRect.height;
+    const areaWidth = Math.floor(areaRect.width);
+    const areaHeight = Math.floor(areaRect.height);
+
+    const padding = window.innerWidth <= 640 ? 14 : 16;
+    const gap = window.innerWidth <= 640 ? 10 : 14;
 
     const endBtnRect = {
-      width: btnEnd.offsetWidth || 136,
-      height: btnEnd.offsetHeight || 48
+      width: btnEnd.offsetWidth || 140,
+      height: btnEnd.offsetHeight || 52
     };
 
-    const padding = 16;
-    const reservedBottomRight = {
+    // 给右下角结束按钮预留安全区
+    const reservedEndBtn = {
       x: areaWidth - endBtnRect.width - padding,
       y: areaHeight - endBtnRect.height - padding,
       width: endBtnRect.width,
       height: endBtnRect.height
     };
 
-    const placed = [];
-
-    const preferredZones = [
-      { x1: 24, y1: 24, x2: areaWidth * 0.34, y2: areaHeight * 0.34 },
-      { x1: areaWidth * 0.34, y1: 18, x2: areaWidth * 0.68, y2: areaHeight * 0.28 },
-      { x1: areaWidth * 0.68, y1: 24, x2: areaWidth - 24, y2: areaHeight * 0.34 },
-
-      { x1: 22, y1: areaHeight * 0.28, x2: areaWidth * 0.34, y2: areaHeight * 0.56 },
-      { x1: areaWidth * 0.34, y1: areaHeight * 0.34, x2: areaWidth * 0.66, y2: areaHeight * 0.62 },
-      { x1: areaWidth * 0.66, y1: areaHeight * 0.34, x2: areaWidth - 22, y2: areaHeight * 0.58 },
-
-      { x1: 20, y1: areaHeight * 0.60, x2: areaWidth * 0.30, y2: areaHeight - 80 },
-      { x1: areaWidth * 0.30, y1: areaHeight * 0.66, x2: areaWidth * 0.62, y2: areaHeight - 70 },
-      { x1: areaWidth * 0.62, y1: areaHeight * 0.64, x2: areaWidth - endBtnRect.width - 40, y2: areaHeight - 80 }
+    // 上中下三层，保持“不规则”但更稳
+    const bands = [
+      { y1: padding, y2: Math.floor(areaHeight * 0.28) },
+      { y1: Math.floor(areaHeight * 0.28), y2: Math.floor(areaHeight * 0.62) },
+      { y1: Math.floor(areaHeight * 0.62), y2: areaHeight - padding }
     ];
 
-    chips.forEach((tag, index) => {
-      const size = estimateChipSize(tag.text, areaWidth);
+    // 先真实测量每个标签
+    const measured = tags.map(tag => ({
+      tag,
+      ...measureChip(tag.text, tagArea)
+    }));
+
+    // 宽的先排，避免最后塞不下
+    measured.sort((a, b) => b.width - a.width);
+
+    const placed = [];
+
+    for (let i = 0; i < measured.length; i++) {
+      const item = measured[i];
       let placedRect = null;
 
-      const zone = preferredZones[index % preferredZones.length];
+      // 每个标签优先尝试某一层，但会随机偏一点
+      const preferredBandIndex = i % 3;
+      const bandOrder = [
+        bands[preferredBandIndex],
+        bands[(preferredBandIndex + 1) % 3],
+        bands[(preferredBandIndex + 2) % 3]
+      ];
 
-      for (let attempt = 0; attempt < 80; attempt++) {
-        const minX = Math.max(padding, zone.x1);
-        const maxX = Math.min(zone.x2 - size.width, areaWidth - size.width - padding);
-        const minY = Math.max(padding, zone.y1);
-        const maxY = Math.min(zone.y2 - size.height, areaHeight - size.height - padding);
+      for (const band of bandOrder) {
+        // 该层可用区域太小就跳过
+        if (band.y2 - band.y1 < item.height + 8) continue;
 
-        const x = maxX > minX ? randInt(Math.floor(minX), Math.floor(maxX)) : minX;
-        const y = maxY > minY ? randInt(Math.floor(minY), Math.floor(maxY)) : minY;
+        for (let attempt = 0; attempt < 120; attempt++) {
+          const xMin = padding;
+          const xMax = areaWidth - item.width - padding;
+          const yMin = band.y1;
+          const yMax = band.y2 - item.height;
 
-        const rect = { x, y, width: size.width, height: size.height };
+          if (xMax <= xMin || yMax <= yMin) continue;
 
-        const overlapPlaced = placed.some(r => rectsOverlap(rect, r, 14));
-        const overlapEndBtn = rectsOverlap(rect, reservedBottomRight, 18);
+          const x = randInt(xMin, xMax);
+          const y = randInt(yMin, yMax);
 
-        if (!overlapPlaced && !overlapEndBtn) {
-          placedRect = rect;
-          break;
+          const rect = {
+            x,
+            y,
+            width: item.width,
+            height: item.height
+          };
+
+          const hitPlaced = placed.some(p => rectsOverlap(rect, p, gap));
+          const hitEndBtn = rectsOverlap(rect, reservedEndBtn, gap + 6);
+
+          if (!hitPlaced && !hitEndBtn) {
+            placedRect = rect;
+            break;
+          }
+        }
+
+        if (placedRect) break;
+      }
+
+      // 如果随机很多次还放不下，就做“扫描式兜底”
+      if (!placedRect) {
+        outer:
+        for (let y = padding; y <= areaHeight - item.height - padding; y += 8) {
+          for (let x = padding; x <= areaWidth - item.width - padding; x += 8) {
+            const rect = {
+              x,
+              y,
+              width: item.width,
+              height: item.height
+            };
+
+            const hitPlaced = placed.some(p => rectsOverlap(rect, p, gap));
+            const hitEndBtn = rectsOverlap(rect, reservedEndBtn, gap + 6);
+
+            if (!hitPlaced && !hitEndBtn) {
+              placedRect = rect;
+              break outer;
+            }
+          }
         }
       }
 
+      // 仍然放不下的话，最后极限兜底：缩短间距
       if (!placedRect) {
-        for (let attempt = 0; attempt < 120; attempt++) {
-          const x = randInt(padding, Math.max(padding, areaWidth - size.width - padding));
-          const y = randInt(padding, Math.max(padding, areaHeight - size.height - padding));
-          const rect = { x, y, width: size.width, height: size.height };
+        outer2:
+        for (let y = padding; y <= areaHeight - item.height - padding; y += 6) {
+          for (let x = padding; x <= areaWidth - item.width - padding; x += 6) {
+            const rect = {
+              x,
+              y,
+              width: item.width,
+              height: item.height
+            };
 
-          const overlapPlaced = placed.some(r => rectsOverlap(rect, r, 10));
-          const overlapEndBtn = rectsOverlap(rect, reservedBottomRight, 18);
+            const hitPlaced = placed.some(p => rectsOverlap(rect, p, 4));
+            const hitEndBtn = rectsOverlap(rect, reservedEndBtn, 8);
 
-          if (!overlapPlaced && !overlapEndBtn) {
-            placedRect = rect;
-            break;
+            if (!hitPlaced && !hitEndBtn) {
+              placedRect = rect;
+              break outer2;
+            }
           }
         }
       }
 
       if (!placedRect) {
+        // 理论上已经很难走到这里
         placedRect = {
-          x: padding + (index % 3) * (size.width + 18),
-          y: padding + Math.floor(index / 3) * (size.height + 18),
-          width: size.width,
-          height: size.height
+          x: padding,
+          y: padding + i * (item.height + 4),
+          width: item.width,
+          height: item.height
         };
       }
 
-      placed.push(placedRect);
-    });
+      placed.push({
+        ...placedRect,
+        tag: item.tag
+      });
+    }
 
-    return placed.map(r => ({ left: r.x, top: r.y }));
+    // 恢复成原 tag 顺序输出，避免文案和位置错乱
+    return tags.map(tag => placed.find(p => p.tag.id === tag.id));
   }
 
   function escapeHtml(str) {
