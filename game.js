@@ -72,9 +72,7 @@
         </div>
 
         <div class="tagArea" id="tagArea">
-          <div class="endBtnWrap">
-            <button class="btn primary" id="btnEnd">${escapeHtml(level.endText)}</button>
-          </div>
+          <button class="btn primary tagAreaEndBtn" id="btnEnd">${escapeHtml(level.endText)}</button>
         </div>
 
         <div class="card hint" id="hint">
@@ -113,8 +111,23 @@
     const ids = level.tagPool.map(x => x.id);
     const chips = ids.map(id => window.tagsById[id]).filter(Boolean);
 
-    placeChipsInGrid(tagArea, chips, (tag) => {
-      onTagClick(level, tag, hint, syncProgress, syncEndBtn);
+    requestAnimationFrame(() => {
+      const positions = genNonOverlappingPositions(chips, tagArea, btnEnd);
+
+      chips.forEach((tag, i) => {
+        const chip = document.createElement("button");
+        chip.className = "chip";
+        chip.textContent = tag.text;
+
+        chip.style.left = positions[i].left + "px";
+        chip.style.top = positions[i].top + "px";
+
+        chip.onclick = () => {
+          onTagClick(level, tag, hint, syncProgress, syncEndBtn);
+        };
+
+        tagArea.appendChild(chip);
+      });
     });
   }
 
@@ -219,6 +232,9 @@
           <button class="btn primary" id="btnRestart">${escapeHtml(copy.summary.restart)}</button>
           <button class="btn" id="btnQuit">${escapeHtml(copy.summary.quit)}</button>
         </div>
+
+        <div style="flex:1"></div>
+        <p class="p" style="opacity:.7">M0：结算页先占位，后续会换成完整 SummaryView。</p>
       </div>
     `);
 
@@ -244,42 +260,121 @@
     `);
   }
 
-  function placeChipsInGrid(container, chips, onClick) {
-    const cellW = window.innerWidth <= 640 ? 150 : 180;
-    const cellH = window.innerWidth <= 640 ? 90 : 100;
+  function estimateChipSize(text, tagAreaWidth) {
+    const isMobile = window.innerWidth <= 640;
+    const fontSize = isMobile ? 16.5 : 16.5;
+    const padX = isMobile ? 18 : 18;
+    const padY = isMobile ? 15 : 15;
+    const border = 2;
 
-    const startX = 18;
-    const startY = 18;
+    const charWidth = fontSize * 1.05;
+    let width = Math.ceil(text.length * charWidth + padX * 2 + border * 2);
+    const maxWidth = Math.floor(tagAreaWidth * (isMobile ? 0.6 : 0.42));
+    width = Math.min(width, maxWidth);
 
-    const containerWidth = container.clientWidth;
-    const bottomReserved = window.innerWidth <= 640 ? 100 : 110;
+    const height = Math.ceil(fontSize * 1.4 + padY * 2 + border * 2);
 
-    const usableWidth = containerWidth - startX * 2;
-    const cols = Math.max(2, Math.floor(usableWidth / cellW));
+    return { width, height };
+  }
 
-    chips.forEach((tag, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
+  function rectsOverlap(a, b, gap = 12) {
+    return !(
+      a.x + a.width + gap < b.x ||
+      b.x + b.width + gap < a.x ||
+      a.y + a.height + gap < b.y ||
+      b.y + b.height + gap < a.y
+    );
+  }
 
-      const chip = document.createElement("button");
-      chip.className = "chip";
-      chip.textContent = tag.text;
+  function genNonOverlappingPositions(chips, tagArea, btnEnd) {
+    const areaRect = tagArea.getBoundingClientRect();
+    const areaWidth = areaRect.width;
+    const areaHeight = areaRect.height;
 
-      const left = startX + col * cellW;
-      const top = startY + row * cellH;
+    const endBtnRect = {
+      width: btnEnd.offsetWidth || 136,
+      height: btnEnd.offsetHeight || 48
+    };
 
-      chip.style.left = `${left}px`;
-      chip.style.top = `${top}px`;
+    const padding = 16;
+    const reservedBottomRight = {
+      x: areaWidth - endBtnRect.width - padding,
+      y: areaHeight - endBtnRect.height - padding,
+      width: endBtnRect.width,
+      height: endBtnRect.height
+    };
 
-      chip.onclick = () => onClick(tag);
+    const placed = [];
 
-      container.appendChild(chip);
+    const preferredZones = [
+      { x1: 24, y1: 24, x2: areaWidth * 0.34, y2: areaHeight * 0.34 },
+      { x1: areaWidth * 0.34, y1: 18, x2: areaWidth * 0.68, y2: areaHeight * 0.28 },
+      { x1: areaWidth * 0.68, y1: 24, x2: areaWidth - 24, y2: areaHeight * 0.34 },
+
+      { x1: 22, y1: areaHeight * 0.28, x2: areaWidth * 0.34, y2: areaHeight * 0.56 },
+      { x1: areaWidth * 0.34, y1: areaHeight * 0.34, x2: areaWidth * 0.66, y2: areaHeight * 0.62 },
+      { x1: areaWidth * 0.66, y1: areaHeight * 0.34, x2: areaWidth - 22, y2: areaHeight * 0.58 },
+
+      { x1: 20, y1: areaHeight * 0.60, x2: areaWidth * 0.30, y2: areaHeight - 80 },
+      { x1: areaWidth * 0.30, y1: areaHeight * 0.66, x2: areaWidth * 0.62, y2: areaHeight - 70 },
+      { x1: areaWidth * 0.62, y1: areaHeight * 0.64, x2: areaWidth - endBtnRect.width - 40, y2: areaHeight - 80 }
+    ];
+
+    chips.forEach((tag, index) => {
+      const size = estimateChipSize(tag.text, areaWidth);
+      let placedRect = null;
+
+      const zone = preferredZones[index % preferredZones.length];
+
+      for (let attempt = 0; attempt < 80; attempt++) {
+        const minX = Math.max(padding, zone.x1);
+        const maxX = Math.min(zone.x2 - size.width, areaWidth - size.width - padding);
+        const minY = Math.max(padding, zone.y1);
+        const maxY = Math.min(zone.y2 - size.height, areaHeight - size.height - padding);
+
+        const x = maxX > minX ? randInt(Math.floor(minX), Math.floor(maxX)) : minX;
+        const y = maxY > minY ? randInt(Math.floor(minY), Math.floor(maxY)) : minY;
+
+        const rect = { x, y, width: size.width, height: size.height };
+
+        const overlapPlaced = placed.some(r => rectsOverlap(rect, r, 14));
+        const overlapEndBtn = rectsOverlap(rect, reservedBottomRight, 18);
+
+        if (!overlapPlaced && !overlapEndBtn) {
+          placedRect = rect;
+          break;
+        }
+      }
+
+      if (!placedRect) {
+        for (let attempt = 0; attempt < 120; attempt++) {
+          const x = randInt(padding, Math.max(padding, areaWidth - size.width - padding));
+          const y = randInt(padding, Math.max(padding, areaHeight - size.height - padding));
+          const rect = { x, y, width: size.width, height: size.height };
+
+          const overlapPlaced = placed.some(r => rectsOverlap(rect, r, 10));
+          const overlapEndBtn = rectsOverlap(rect, reservedBottomRight, 18);
+
+          if (!overlapPlaced && !overlapEndBtn) {
+            placedRect = rect;
+            break;
+          }
+        }
+      }
+
+      if (!placedRect) {
+        placedRect = {
+          x: padding + (index % 3) * (size.width + 18),
+          y: padding + Math.floor(index / 3) * (size.height + 18),
+          width: size.width,
+          height: size.height
+        };
+      }
+
+      placed.push(placedRect);
     });
 
-    const rows = Math.ceil(chips.length / cols);
-    const neededHeight = startY + rows * cellH + bottomReserved;
-    const minHeight = window.innerWidth <= 640 ? 380 : 420;
-    container.style.minHeight = `${Math.max(minHeight, neededHeight)}px`;
+    return placed.map(r => ({ left: r.x, top: r.y }));
   }
 
   function escapeHtml(str) {
