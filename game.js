@@ -1,9 +1,24 @@
 (function () {
   const app = document.getElementById("app");
 
+  // ---------- util ----------
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
   const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
+  function escapeHtml(str) {
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function setView(html) {
+    app.innerHTML = html;
+  }
+
+  // ---------- state ----------
   function resetState() {
     const level = window.levels[0];
     const [a, b] = level.overtimeThresholdRange;
@@ -29,16 +44,13 @@
 
   let state = resetState();
 
-  function setView(html) {
-    app.innerHTML = html;
-  }
-
+  // ---------- views ----------
   function renderStart() {
     setView(`
       <div class="view startView">
         <div class="card">
           <h1 class="h1">${escapeHtml(copy.start.title)}</h1>
-          <p class="p">${escapeHtml(copy.start.intro).replaceAll("\\n","<br/>")}</p>
+          <p class="p">${escapeHtml(copy.start.intro).replaceAll("\\n", "<br/>")}</p>
         </div>
         <button class="btn primary" id="btnStart">${escapeHtml(copy.start.cta)}</button>
       </div>
@@ -108,19 +120,20 @@
       renderSummary();
     };
 
-    const ids = level.tagPool.map(x => x.id);
-    const chips = ids.map(id => window.tagsById[id]).filter(Boolean);
+    const tags = level.tagPool
+      .map(item => window.tagsById[item.id])
+      .filter(Boolean);
 
+    // 等当前视图完成布局后再测量、排布
     requestAnimationFrame(() => {
-      const positions = layoutChipsWithRealMeasure(chips, tagArea, btnEnd);
+      const placements = layoutTags(tags, tagArea, btnEnd);
 
-      chips.forEach((tag, i) => {
+      placements.forEach(({ tag, x, y }) => {
         const chip = document.createElement("button");
         chip.className = "chip";
         chip.textContent = tag.text;
-
-        chip.style.left = positions[i].left + "px";
-        chip.style.top = positions[i].top + "px";
+        chip.style.left = `${x}px`;
+        chip.style.top = `${y}px`;
 
         chip.onclick = () => {
           onTagClick(level, tag, hint, syncProgress, syncEndBtn);
@@ -131,6 +144,80 @@
     });
   }
 
+  function renderSummary() {
+    const total = state.logs.actions.length;
+    const warnings = state.logs.warnings.length;
+
+    setView(`
+      <div class="view">
+        <div class="card">
+          <h1 class="h1">${escapeHtml(copy.summary.title)}</h1>
+          <p class="p">${escapeHtml(copy.summary.placeholder).replaceAll("\\n", "<br/>")}</p>
+        </div>
+
+        <div class="card">
+          <p class="p">今日偷回时间点：<b style="color:var(--text)">${total}</b></p>
+          <p class="p">警告次数：<b style="color:var(--text)">${warnings}</b></p>
+        </div>
+
+        <div class="btnRow">
+          <button class="btn primary" id="btnRestart">${escapeHtml(copy.summary.restart)}</button>
+          <button class="btn" id="btnQuit">${escapeHtml(copy.summary.quit)}</button>
+        </div>
+
+        <div style="flex:1"></div>
+        <p class="p" style="opacity:.7">M0：结算页先占位，后续会换成完整 SummaryView。</p>
+      </div>
+    `);
+
+    document.getElementById("btnRestart").onclick = () => renderStart();
+    document.getElementById("btnQuit").onclick = () => {
+      state.quitFrom = "summary";
+      renderQuit();
+    };
+  }
+
+  function renderQuit() {
+    const text = state.quitFrom === "modal" ? copy.quit.early : copy.quit.after;
+
+    setView(`
+      <div class="view">
+        <div class="card">
+          <h1 class="h1">辞职</h1>
+          <p class="p">${escapeHtml(text).replaceAll("\\n", "<br/>")}</p>
+        </div>
+        <div style="flex:1"></div>
+        <p class="p" style="opacity:.7">（游戏已结束）</p>
+      </div>
+    `);
+  }
+
+  function renderModal({ title, body, okText, quitText, onOk, onQuit }) {
+    const mask = document.createElement("div");
+    mask.className = "modalMask";
+    mask.id = "modalMask";
+    mask.innerHTML = `
+      <div class="modal" role="dialog" aria-modal="true">
+        <h3 class="modalTitle">${escapeHtml(title)}</h3>
+        <p class="modalBody">${escapeHtml(body)}</p>
+        <div class="btnRow" style="justify-content:flex-end">
+          <button class="btn" id="btnQuit">${escapeHtml(quitText)}</button>
+          <button class="btn primary" id="btnOk">${escapeHtml(okText)}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(mask);
+
+    document.getElementById("btnOk").onclick = onOk;
+    document.getElementById("btnQuit").onclick = onQuit;
+  }
+
+  function closeModal() {
+    const modal = document.getElementById("modalMask");
+    if (modal) modal.remove();
+  }
+
+  // ---------- gameplay ----------
   function onTagClick(level, tag, hintEl, syncProgress, syncEndBtn) {
     state.used += 1;
 
@@ -187,79 +274,7 @@
     });
   }
 
-  function renderModal({ title, body, okText, quitText, onOk, onQuit }) {
-    const mask = document.createElement("div");
-    mask.className = "modalMask";
-    mask.id = "modalMask";
-    mask.innerHTML = `
-      <div class="modal" role="dialog" aria-modal="true">
-        <h3 class="modalTitle">${escapeHtml(title)}</h3>
-        <p class="modalBody">${escapeHtml(body)}</p>
-        <div class="btnRow" style="justify-content:flex-end">
-          <button class="btn" id="btnQuit">${escapeHtml(quitText)}</button>
-          <button class="btn primary" id="btnOk">${escapeHtml(okText)}</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(mask);
-
-    document.getElementById("btnOk").onclick = onOk;
-    document.getElementById("btnQuit").onclick = onQuit;
-  }
-
-  function closeModal() {
-    const m = document.getElementById("modalMask");
-    if (m) m.remove();
-  }
-
-  function renderSummary() {
-    const total = state.logs.actions.length;
-    const warnings = state.logs.warnings.length;
-
-    setView(`
-      <div class="view">
-        <div class="card">
-          <h1 class="h1">${escapeHtml(copy.summary.title)}</h1>
-          <p class="p">${escapeHtml(copy.summary.placeholder).replaceAll("\\n","<br/>")}</p>
-        </div>
-
-        <div class="card">
-          <p class="p">今日偷回时间点：<b style="color:var(--text)">${total}</b></p>
-          <p class="p">警告次数：<b style="color:var(--text)">${warnings}</b></p>
-        </div>
-
-        <div class="btnRow">
-          <button class="btn primary" id="btnRestart">${escapeHtml(copy.summary.restart)}</button>
-          <button class="btn" id="btnQuit">${escapeHtml(copy.summary.quit)}</button>
-        </div>
-
-        <div style="flex:1"></div>
-        <p class="p" style="opacity:.7">M0：结算页先占位，后续会换成完整 SummaryView。</p>
-      </div>
-    `);
-
-    document.getElementById("btnRestart").onclick = () => renderStart();
-    document.getElementById("btnQuit").onclick = () => {
-      state.quitFrom = "summary";
-      renderQuit();
-    };
-  }
-
-  function renderQuit() {
-    const text = state.quitFrom === "modal" ? copy.quit.early : copy.quit.after;
-
-    setView(`
-      <div class="view">
-        <div class="card">
-          <h1 class="h1">辞职</h1>
-          <p class="p">${escapeHtml(text).replaceAll("\\n","<br/>")}</p>
-        </div>
-        <div style="flex:1"></div>
-        <p class="p" style="opacity:.7">（游戏已结束）</p>
-      </div>
-    `);
-  }
-
+  // ---------- layout ----------
   function rectsOverlap(a, b, gap = 12) {
     return !(
       a.x + a.width + gap <= b.x ||
@@ -273,9 +288,9 @@
     const temp = document.createElement("button");
     temp.className = "chip";
     temp.textContent = tagText;
+    temp.style.visibility = "hidden";
     temp.style.left = "-9999px";
     temp.style.top = "-9999px";
-    temp.style.visibility = "hidden";
 
     tagArea.appendChild(temp);
     const rect = temp.getBoundingClientRect();
@@ -287,71 +302,72 @@
     };
   }
 
-  function layoutChipsWithRealMeasure(tags, tagArea, btnEnd) {
+  function layoutTags(tags, tagArea, btnEnd) {
     const areaRect = tagArea.getBoundingClientRect();
     const areaWidth = Math.floor(areaRect.width);
     const areaHeight = Math.floor(areaRect.height);
 
-    const padding = window.innerWidth <= 640 ? 14 : 16;
-    const gap = window.innerWidth <= 640 ? 10 : 14;
+    const isMobile = window.innerWidth <= 640;
+    const padding = isMobile ? 14 : 18;
+    const gap = isMobile ? 10 : 14;
 
-    const endBtnRect = {
-      width: btnEnd.offsetWidth || 140,
-      height: btnEnd.offsetHeight || 52
+    const btnWidth = btnEnd.offsetWidth || 140;
+    const btnHeight = btnEnd.offsetHeight || 52;
+
+    // 右下角按钮保留区
+    const reserved = {
+      x: areaWidth - btnWidth - padding,
+      y: areaHeight - btnHeight - padding,
+      width: btnWidth,
+      height: btnHeight
     };
 
-    // 给右下角结束按钮预留安全区
-    const reservedEndBtn = {
-      x: areaWidth - endBtnRect.width - padding,
-      y: areaHeight - endBtnRect.height - padding,
-      width: endBtnRect.width,
-      height: endBtnRect.height
-    };
-
-    // 上中下三层，保持“不规则”但更稳
-    const bands = [
-      { y1: padding, y2: Math.floor(areaHeight * 0.28) },
-      { y1: Math.floor(areaHeight * 0.28), y2: Math.floor(areaHeight * 0.62) },
-      { y1: Math.floor(areaHeight * 0.62), y2: areaHeight - padding }
-    ];
-
-    // 先真实测量每个标签
+    // 先真实测量尺寸
     const measured = tags.map(tag => ({
       tag,
       ...measureChip(tag.text, tagArea)
     }));
 
-    // 宽的先排，避免最后塞不下
-    measured.sort((a, b) => b.width - a.width);
+    // 宽的先排，降低碰撞概率
+    measured.sort((a, b) => {
+      const areaA = a.width * a.height;
+      const areaB = b.width * b.height;
+      return areaB - areaA;
+    });
 
     const placed = [];
 
+    // 三层区域：上 / 中 / 下
+    const bands = [
+      { y1: padding, y2: Math.floor(areaHeight * 0.30) },
+      { y1: Math.floor(areaHeight * 0.30), y2: Math.floor(areaHeight * 0.62) },
+      { y1: Math.floor(areaHeight * 0.62), y2: areaHeight - padding }
+    ];
+
     for (let i = 0; i < measured.length; i++) {
       const item = measured[i];
-      let placedRect = null;
+      let found = null;
 
-      // 每个标签优先尝试某一层，但会随机偏一点
-      const preferredBandIndex = i % 3;
-      const bandOrder = [
-        bands[preferredBandIndex],
-        bands[(preferredBandIndex + 1) % 3],
-        bands[(preferredBandIndex + 2) % 3]
+      // 为了保持“不规则散落”，每个标签优先尝试一个 band，但不是死板固定
+      const preferredBand = i % 3;
+      const tryBands = [
+        bands[preferredBand],
+        bands[(preferredBand + 1) % 3],
+        bands[(preferredBand + 2) % 3]
       ];
 
-      for (const band of bandOrder) {
-        // 该层可用区域太小就跳过
-        if (band.y2 - band.y1 < item.height + 8) continue;
+      for (const band of tryBands) {
+        const minX = padding;
+        const maxX = areaWidth - item.width - padding;
+        const minY = band.y1;
+        const maxY = band.y2 - item.height;
 
-        for (let attempt = 0; attempt < 120; attempt++) {
-          const xMin = padding;
-          const xMax = areaWidth - item.width - padding;
-          const yMin = band.y1;
-          const yMax = band.y2 - item.height;
+        if (maxX <= minX || maxY <= minY) continue;
 
-          if (xMax <= xMin || yMax <= yMin) continue;
-
-          const x = randInt(xMin, xMax);
-          const y = randInt(yMin, yMax);
+        // 随机尝试
+        for (let attempt = 0; attempt < 220; attempt++) {
+          const x = randInt(minX, maxX);
+          const y = randInt(minY, maxY);
 
           const rect = {
             x,
@@ -360,20 +376,20 @@
             height: item.height
           };
 
-          const hitPlaced = placed.some(p => rectsOverlap(rect, p, gap));
-          const hitEndBtn = rectsOverlap(rect, reservedEndBtn, gap + 6);
+          const hitPlaced = placed.some(r => rectsOverlap(rect, r, gap));
+          const hitReserved = rectsOverlap(rect, reserved, gap + 6);
 
-          if (!hitPlaced && !hitEndBtn) {
-            placedRect = rect;
+          if (!hitPlaced && !hitReserved) {
+            found = rect;
             break;
           }
         }
 
-        if (placedRect) break;
+        if (found) break;
       }
 
-      // 如果随机很多次还放不下，就做“扫描式兜底”
-      if (!placedRect) {
+      // 扫描式兜底
+      if (!found) {
         outer:
         for (let y = padding; y <= areaHeight - item.height - padding; y += 8) {
           for (let x = padding; x <= areaWidth - item.width - padding; x += 8) {
@@ -384,19 +400,19 @@
               height: item.height
             };
 
-            const hitPlaced = placed.some(p => rectsOverlap(rect, p, gap));
-            const hitEndBtn = rectsOverlap(rect, reservedEndBtn, gap + 6);
+            const hitPlaced = placed.some(r => rectsOverlap(rect, r, gap));
+            const hitReserved = rectsOverlap(rect, reserved, gap + 6);
 
-            if (!hitPlaced && !hitEndBtn) {
-              placedRect = rect;
+            if (!hitPlaced && !hitReserved) {
+              found = rect;
               break outer;
             }
           }
         }
       }
 
-      // 仍然放不下的话，最后极限兜底：缩短间距
-      if (!placedRect) {
+      // 最后兜底：放宽一点间距，不至于完全消失
+      if (!found) {
         outer2:
         for (let y = padding; y <= areaHeight - item.height - padding; y += 6) {
           for (let x = padding; x <= areaWidth - item.width - padding; x += 6) {
@@ -407,45 +423,44 @@
               height: item.height
             };
 
-            const hitPlaced = placed.some(p => rectsOverlap(rect, p, 4));
-            const hitEndBtn = rectsOverlap(rect, reservedEndBtn, 8);
+            const hitPlaced = placed.some(r => rectsOverlap(rect, r, 4));
+            const hitReserved = rectsOverlap(rect, reserved, 8);
 
-            if (!hitPlaced && !hitEndBtn) {
-              placedRect = rect;
+            if (!hitPlaced && !hitReserved) {
+              found = rect;
               break outer2;
             }
           }
         }
       }
 
-      if (!placedRect) {
-        // 理论上已经很难走到这里
-        placedRect = {
+      // 仍然没有就硬放，但正常这一步很少走到
+      if (!found) {
+        found = {
           x: padding,
-          y: padding + i * (item.height + 4),
+          y: padding + i * (item.height + 6),
           width: item.width,
           height: item.height
         };
       }
 
       placed.push({
-        ...placedRect,
+        ...found,
         tag: item.tag
       });
     }
 
-    // 恢复成原 tag 顺序输出，避免文案和位置错乱
-    return tags.map(tag => placed.find(p => p.tag.id === tag.id));
+    // 按原始 tag 顺序输出，保证文本和位置一一对应
+    return tags.map(tag => {
+      const match = placed.find(p => p.tag.id === tag.id);
+      return {
+        tag,
+        x: match.x,
+        y: match.y
+      };
+    });
   }
 
-  function escapeHtml(str) {
-    return String(str)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
+  // ---------- boot ----------
   renderStart();
 })();
