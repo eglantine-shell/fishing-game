@@ -112,7 +112,7 @@
     const chips = ids.map(id => window.tagsById[id]).filter(Boolean);
 
     requestAnimationFrame(() => {
-      const positions = genNonOverlappingPositions(chips, tagArea, btnEnd);
+      const positions = layoutChipsWithRealMeasure(chips, tagArea, btnEnd);
 
       chips.forEach((tag, i) => {
         const chip = document.createElement("button");
@@ -258,15 +258,6 @@
         <p class="p" style="opacity:.7">（游戏已结束）</p>
       </div>
     `);
-  }
-
-  function rectsOverlap(a, b, gap = 12) {
-    return !(
-      a.x + a.width + gap < b.x ||
-      b.x + b.width + gap < a.x ||
-      a.y + a.height + gap < b.y ||
-      b.y + b.height + gap < a.y
-    );
   }
 
   function rectsOverlap(a, b, gap = 12) {
