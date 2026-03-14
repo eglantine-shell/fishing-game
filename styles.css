@@ -1,0 +1,421 @@
+:root{
+  /* 道林纸系底色 */
+  --bg: #f4efdf;
+  --paper: #f8f3e7;
+  --paper-deep: #efe7d4;
+
+  /* 复古绿体系 */
+  --green-900: #1f3a2e;
+  --green-800: #2d4a3a;
+  --green-700: #3e604c;
+  --green-600: #557765;
+  --green-500: #6f947f;
+  --green-400: #97b29f;
+  --green-300: #bfd0c1;
+
+  /* 文字与辅助色 */
+  --text: #213328;
+  --muted: #5f7265;
+  --line: #355342;
+  --chip: #edf3ea;
+  --chip-border: #557765;
+  --danger: #b45757;
+  --shadow: #9cad9f;
+
+  /* 像素尺寸 */
+  --border: 2px;
+  --shadow-step: 4px;
+}
+
+*{
+  box-sizing: border-box;
+}
+
+html,
+body{
+  height: 100%;
+}
+
+html{
+  background: var(--bg);
+}
+
+body{
+  margin: 0;
+  background:
+    linear-gradient(to bottom, rgba(255,255,255,0.18), rgba(255,255,255,0)) no-repeat,
+    var(--bg);
+  color: var(--text);
+  font-family:
+    "Press Start 2P",
+    "PixelMplus12",
+    "Fusion Pixel 12px Proportional CN",
+    "zpix",
+    monospace,
+    system-ui,
+    sans-serif;
+  font-smooth: never;
+  -webkit-font-smoothing: none;
+  text-rendering: geometricPrecision;
+  letter-spacing: 0;
+}
+
+#app{
+  height: 100%;
+}
+
+/* 通用视图布局 */
+.view{
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+}
+
+/* 像素窗口 */
+.card{
+  position: relative;
+  background: var(--paper);
+  border: var(--border) solid var(--line);
+  border-radius: 0;
+  padding: 14px;
+  box-shadow: var(--shadow-step) var(--shadow-step) 0 0 var(--shadow);
+}
+
+/* 让卡片更像游戏窗口 */
+.card::before{
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 8px;
+  background: repeating-linear-gradient(
+    to right,
+    var(--green-700) 0 8px,
+    var(--green-500) 8px 16px
+  );
+  border-bottom: var(--border) solid var(--line);
+}
+
+.card > *:first-child{
+  margin-top: 10px;
+}
+
+.h1{
+  font-size: 16px;
+  line-height: 1.5;
+  margin: 0 0 8px 0;
+  color: var(--green-900);
+}
+
+.p{
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 12px;
+}
+
+/* 按钮 */
+.btn{
+  appearance: none;
+  border: var(--border) solid var(--chip-border);
+  background: var(--chip);
+  color: var(--green-900);
+  padding: 12px 14px;
+  border-radius: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 0 var(--shadow);
+  transition: none;
+  min-height: 44px;
+}
+
+.btn:hover{
+  background: var(--paper-deep);
+}
+
+.btn:active{
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 0 var(--shadow);
+}
+
+.btn.primary{
+  background: var(--green-700);
+  border-color: var(--green-900);
+  color: var(--paper);
+}
+
+.btn.primary:hover{
+  background: var(--green-800);
+}
+
+.btn:disabled{
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.btnRow{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 顶部区域 */
+.levelTop{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 进度条：白底绿条，超时变红 */
+.progressWrap{
+  height: 14px;
+  background: var(--paper-deep);
+  border: var(--border) solid var(--line);
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 var(--border) rgba(255,255,255,0.12);
+}
+
+.progressBar{
+  height: 100%;
+  width: 0%;
+  background:
+    repeating-linear-gradient(
+      to right,
+      var(--green-700) 0 12px,
+      var(--green-500) 12px 24px
+    );
+  transition: width 120ms linear;
+}
+
+.progressBar.danger{
+  background:
+    repeating-linear-gradient(
+      to right,
+      #b45757 0 12px,
+      #d27a7a 12px 24px
+    );
+}
+
+/* 标签区域 */
+.tagArea{
+  position: relative;
+  flex: 1;
+  min-height: 420px;
+  background:
+    linear-gradient(rgba(62,96,76,0.05), rgba(62,96,76,0.05)),
+    var(--paper);
+  border: var(--border) solid var(--line);
+  border-radius: 0;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.18);
+}
+
+/* 像素网格感 */
+.tagArea::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(53,83,66,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(53,83,66,0.06) 1px, transparent 1px);
+  background-size: 12px 12px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* 标签按钮 */
+.chip{
+  position: absolute;
+  padding: 10px 12px;
+  border-radius: 0;
+  border: var(--border) solid var(--chip-border);
+  background: var(--chip);
+  color: var(--green-900);
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  box-shadow: 2px 2px 0 0 var(--shadow);
+  transition: none;
+  z-index: 1;
+}
+
+.chip:hover{
+  background: #e7efe4;
+}
+
+.chip:active{
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 0 var(--shadow);
+}
+
+/* 底部提示区 */
+.hint{
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+/* 右侧中部结束按钮 */
+.endBtnWrap{
+  position: fixed;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+.endBtnWrap .btn{
+  display: none;
+}
+
+.endBtnWrap .btn.show{
+  display: inline-block;
+}
+
+/* 弹窗 */
+.modalMask{
+  position: fixed;
+  inset: 0;
+  background: rgba(33, 51, 40, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  z-index: 50;
+}
+
+.modal{
+  width: min(520px, 100%);
+  background: var(--paper);
+  border: var(--border) solid var(--line);
+  border-radius: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 5px 5px 0 0 var(--shadow);
+  position: relative;
+}
+
+.modal::before{
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 8px;
+  background: repeating-linear-gradient(
+    to right,
+    var(--green-700) 0 8px,
+    var(--green-500) 8px 16px
+  );
+  border-bottom: var(--border) solid var(--line);
+}
+
+.modal > *:first-child{
+  margin-top: 10px;
+}
+
+.modalTitle{
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--green-900);
+}
+
+.modalBody{
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.7;
+  font-size: 12px;
+}
+
+/* 小型强调文字 */
+b,
+strong{
+  color: var(--green-900);
+  font-weight: 700;
+}
+
+/* 让开始页和结算页底部说明更柔和 */
+.p[style*="opacity"]{
+  color: #7b8c80 !important;
+}
+
+/* 移动端优化 */
+@media (max-width: 640px){
+  .view{
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .card{
+    padding: 12px;
+  }
+
+  .h1{
+    font-size: 15px;
+  }
+
+  .p,
+  .hint,
+  .modalBody{
+    font-size: 11px;
+  }
+
+  .btn{
+    font-size: 11px;
+    padding: 11px 12px;
+  }
+
+  .chip{
+    font-size: 10px;
+    padding: 9px 10px;
+    max-width: 42vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tagArea{
+    min-height: 380px;
+  }
+
+  .endBtnWrap{
+    right: 10px;
+  }
+}
+
+/* 很小屏幕时避免右侧按钮挡住内容 */
+@media (max-width: 420px){
+  .endBtnWrap{
+    top: auto;
+    bottom: 16px;
+    transform: none;
+  }
+}
+
+/* 横屏下尽量不崩 */
+@media (orientation: landscape) and (max-height: 520px){
+  .tagArea{
+    min-height: 260px;
+  }
+
+  .view{
+    gap: 8px;
+  }
+
+  .hint{
+    min-height: 44px;
+  }
+}
