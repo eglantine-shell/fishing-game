@@ -18,31 +18,67 @@
     app.innerHTML = html;
   }
 
-  // ---------- state ----------
-  function resetState() {
-    const level = window.levels[0];
-    const [a, b] = level.overtimeThresholdRange;
+  function fillTemplate(template, vars = {}) {
+    let out = template || "";
+    Object.entries(vars).forEach(([key, value]) => {
+      out = out.replaceAll(`{${key}}`, value ?? "");
+    });
+    return out;
+  }
 
+  // ---------- state ----------
+  function getLevelQuota(level, logs) {
+    if (level.id === "company" && typeof level.quotaIfPrevWarning === "number") {
+      const metroWarned = logs.warnings.some(w => w.levelId === "metro");
+      return metroWarned ? level.quotaIfPrevWarning : level.quota;
+    }
+    return level.quota;
+  }
+
+  function makeLevelRuntime(level, logs) {
+    const [a, b] = level.overtimeThresholdRange;
     return {
-      levelIndex: 0,
+      levelIndex: window.levels.findIndex(l => l.id === level.id),
       levelId: level.id,
-      quota: level.quota,
+      quota: getLevelQuota(level, logs),
       used: 0,
-      remaining: level.quota,
+      remaining: getLevelQuota(level, logs),
       overtimeClicks: 0,
-      overtimeThreshold: randInt(a, b),
+      overtimeThreshold: randInt(a, b)
+    };
+  }
+
+  function resetState() {
+    const firstLevel = window.levels[0];
+    const logs = {
+      actions: [],
+      warnings: []
+    };
+    return {
+      ...makeLevelRuntime(firstLevel, logs),
       warningCount: 0,
       finalHourWarning: false,
-      logs: {
-        actions: [],
-        warnings: []
-      },
+      logs,
       lastTagText: null,
-      quitFrom: null
+      quitFrom: null,
+      endingKey: null
     };
   }
 
   let state = resetState();
+
+  function enterLevel(levelIndex) {
+    const level = window.levels[levelIndex];
+    const runtime = makeLevelRuntime(level, state.logs);
+
+    state.levelIndex = levelIndex;
+    state.levelId = runtime.levelId;
+    state.quota = runtime.quota;
+    state.used = runtime.used;
+    state.remaining = runtime.remaining;
+    state.overtimeClicks = runtime.overtimeClicks;
+    state.overtimeThreshold = runtime.overtimeThreshold;
+  }
 
   // ---------- views ----------
   function renderStart() {
@@ -64,8 +100,6 @@
 
   function renderLevel() {
     const level = window.levels[state.levelIndex];
-    state.levelId = level.id;
-    state.quota = level.quota;
 
     setView(`
       <div class="view">
@@ -73,9 +107,9 @@
           <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;">
             <div>
               <div class="h1" style="margin:0;">${escapeHtml(level.title)}</div>
-              <div class="p">偷回配额：${level.quota} 点</div>
+              <div class="p">偷回配额：${state.quota} 点</div>
             </div>
-            <div class="p" id="counterText">已用 ${state.used} / ${level.quota}</div>
+            <div class="p" id="counterText">已用 ${state.used} / ${state.quota}</div>
           </div>
 
           <div class="progressWrap" aria-label="progress">
@@ -105,10 +139,10 @@
     }
 
     function syncProgress() {
-      const pct = clamp((state.used / level.quota) * 100, 0, 100);
+      const pct = clamp((state.used / state.quota) * 100, 0, 100);
       progressBar.style.width = pct + "%";
-      counterText.textContent = `已用 ${state.used} / ${level.quota}`;
-      if (state.used > level.quota) progressBar.classList.add("danger");
+      counterText.textContent = `已用 ${state.used} / ${state.quota}`;
+      if (state.used > state.quota) progressBar.classList.add("danger");
       else progressBar.classList.remove("danger");
     }
 
@@ -117,14 +151,13 @@
 
     btnEnd.onclick = () => {
       if (state.remaining > 0) return;
-      renderSummary();
+      goNext();
     };
 
     const tags = level.tagPool
       .map(item => window.tagsById[item.id])
       .filter(Boolean);
 
-    // 等当前视图完成布局后再测量、排布
     requestAnimationFrame(() => {
       const placements = layoutTags(tags, tagArea, btnEnd);
 
@@ -146,27 +179,56 @@
 
   function renderSummary() {
     const total = state.logs.actions.length;
-    const warnings = state.logs.warnings.length;
+    const warningCount = state.logs.warnings.length;
+    const actionsByLevel = {};
+
+    window.levels.forEach(level => {
+      actionsByLevel[level.id] = 0;
+    });
+
+    state.logs.actions.forEach(action => {
+      actionsByLevel[action.levelId] = (actionsByLevel[action.levelId] || 0) + 1;
+    });
+
+    const ending = copy.endings[state.endingKey];
 
     setView(`
       <div class="view">
         <div class="card">
-          <h1 class="h1">${escapeHtml(copy.summary.title)}</h1>
-          <p class="p">${escapeHtml(copy.summary.placeholder).replaceAll("\\n", "<br/>")}</p>
+          <h1 class="h1">${escapeHtml(ending.title)}</h1>
+          <p class="p">${escapeHtml(ending.body).replaceAll("\\n", "<br/>")}</p>
         </div>
 
         <div class="card">
           <p class="p">今日偷回时间点：<b style="color:var(--text)">${total}</b></p>
-          <p class="p">警告次数：<b style="color:var(--text)">${warnings}</b></p>
+          <p class="p">警告次数：<b style="color:var(--text)">${warningCount}</b></p>
+        </div>
+
+        <div class="card">
+          <p class="p">今日偷闲分布：</p>
+          <div style="height:8px"></div>
+          ${window.levels.map(level => `
+            <p class="p">${escapeHtml(level.title)}：<b style="color:var(--text)">${actionsByLevel[level.id] || 0}</b></p>
+          `).join("")}
+        </div>
+
+        <div class="card">
+          <p class="p">警告统计：</p>
+          <div style="height:8px"></div>
+          ${
+            state.logs.warnings.length === 0
+              ? `<p class="p">今天风平浪静。公司暂时没有注意到你。</p>`
+              : state.logs.warnings.map(item => {
+                  const level = window.levels.find(l => l.id === item.levelId);
+                  return `<p class="p">${escapeHtml(level ? level.title : item.levelId)}：${escapeHtml(item.warningTag)}</p>`;
+                }).join("")
+          }
         </div>
 
         <div class="btnRow">
           <button class="btn primary" id="btnRestart">${escapeHtml(copy.summary.restart)}</button>
           <button class="btn" id="btnQuit">${escapeHtml(copy.summary.quit)}</button>
         </div>
-
-        <div style="flex:1"></div>
-        <p class="p" style="opacity:.7">M0：结算页先占位，后续会换成完整 SummaryView。</p>
       </div>
     `);
 
@@ -218,6 +280,26 @@
   }
 
   // ---------- gameplay ----------
+  function goNext() {
+    if (state.levelIndex < window.levels.length - 1) {
+      enterLevel(state.levelIndex + 1);
+      renderLevel();
+    } else {
+      decideEnding();
+      renderSummary();
+    }
+  }
+
+  function decideEnding() {
+    if (state.warningCount >= 4 && state.finalHourWarning === false) {
+      state.endingKey = "ending1";
+    } else if (state.warningCount >= 2 && state.finalHourWarning === false) {
+      state.endingKey = "ending2";
+    } else {
+      state.endingKey = "ending3";
+    }
+  }
+
   function onTagClick(level, tag, hintEl, syncProgress, syncEndBtn) {
     state.used += 1;
 
@@ -248,23 +330,29 @@
 
   function triggerWarning(level) {
     state.warningCount += 1;
+
+    if (level.id === "lastHour") {
+      state.finalHourWarning = true;
+    }
+
     state.logs.warnings.push({
       t: Date.now(),
       levelId: level.id,
       warningTag: level.warningEvent.tag
     });
 
-    const last = state.lastTagText ?? "这个";
-    const body = `糟糕，坐过站了！${last}有这么好看吗！`;
+    const body = fillTemplate(level.warningEvent.bodyTemplate, {
+      lastTag: state.lastTagText ?? "这个"
+    });
 
     renderModal({
-      title: "糟糕",
+      title: level.warningEvent.title || "糟糕",
       body,
-      okText: copy.modal.ok,
-      quitText: copy.modal.quit,
+      okText: level.warningEvent.okText || "知道了",
+      quitText: level.warningEvent.quitText || "要不辞职？",
       onOk: () => {
         closeModal();
-        renderSummary();
+        goNext();
       },
       onQuit: () => {
         closeModal();
@@ -314,7 +402,6 @@
     const btnWidth = btnEnd.offsetWidth || 140;
     const btnHeight = btnEnd.offsetHeight || 52;
 
-    // 右下角按钮保留区
     const reserved = {
       x: areaWidth - btnWidth - padding,
       y: areaHeight - btnHeight - padding,
@@ -322,22 +409,14 @@
       height: btnHeight
     };
 
-    // 先真实测量尺寸
     const measured = tags.map(tag => ({
       tag,
       ...measureChip(tag.text, tagArea)
     }));
 
-    // 宽的先排，降低碰撞概率
-    measured.sort((a, b) => {
-      const areaA = a.width * a.height;
-      const areaB = b.width * b.height;
-      return areaB - areaA;
-    });
+    measured.sort((a, b) => (b.width * b.height) - (a.width * a.height));
 
     const placed = [];
-
-    // 三层区域：上 / 中 / 下
     const bands = [
       { y1: padding, y2: Math.floor(areaHeight * 0.30) },
       { y1: Math.floor(areaHeight * 0.30), y2: Math.floor(areaHeight * 0.62) },
@@ -348,7 +427,6 @@
       const item = measured[i];
       let found = null;
 
-      // 为了保持“不规则散落”，每个标签优先尝试一个 band，但不是死板固定
       const preferredBand = i % 3;
       const tryBands = [
         bands[preferredBand],
@@ -364,17 +442,11 @@
 
         if (maxX <= minX || maxY <= minY) continue;
 
-        // 随机尝试
         for (let attempt = 0; attempt < 220; attempt++) {
           const x = randInt(minX, maxX);
           const y = randInt(minY, maxY);
 
-          const rect = {
-            x,
-            y,
-            width: item.width,
-            height: item.height
-          };
+          const rect = { x, y, width: item.width, height: item.height };
 
           const hitPlaced = placed.some(r => rectsOverlap(rect, r, gap));
           const hitReserved = rectsOverlap(rect, reserved, gap + 6);
@@ -388,18 +460,11 @@
         if (found) break;
       }
 
-      // 扫描式兜底
       if (!found) {
         outer:
         for (let y = padding; y <= areaHeight - item.height - padding; y += 8) {
           for (let x = padding; x <= areaWidth - item.width - padding; x += 8) {
-            const rect = {
-              x,
-              y,
-              width: item.width,
-              height: item.height
-            };
-
+            const rect = { x, y, width: item.width, height: item.height };
             const hitPlaced = placed.some(r => rectsOverlap(rect, r, gap));
             const hitReserved = rectsOverlap(rect, reserved, gap + 6);
 
@@ -411,18 +476,11 @@
         }
       }
 
-      // 最后兜底：放宽一点间距，不至于完全消失
       if (!found) {
         outer2:
         for (let y = padding; y <= areaHeight - item.height - padding; y += 6) {
           for (let x = padding; x <= areaWidth - item.width - padding; x += 6) {
-            const rect = {
-              x,
-              y,
-              width: item.width,
-              height: item.height
-            };
-
+            const rect = { x, y, width: item.width, height: item.height };
             const hitPlaced = placed.some(r => rectsOverlap(rect, r, 4));
             const hitReserved = rectsOverlap(rect, reserved, 8);
 
@@ -434,7 +492,6 @@
         }
       }
 
-      // 仍然没有就硬放，但正常这一步很少走到
       if (!found) {
         found = {
           x: padding,
@@ -450,7 +507,6 @@
       });
     }
 
-    // 按原始 tag 顺序输出，保证文本和位置一一对应
     return tags.map(tag => {
       const match = placed.find(p => p.tag.id === tag.id);
       return {
