@@ -122,7 +122,7 @@
         </div>
 
         <div class="card hint" id="hint">
-          点击标签，偷回一点点时间。
+          点击标签，从公司手里偷回一点点时间。
         </div>
       </div>
     `);
@@ -249,7 +249,7 @@
           <p class="p">${escapeHtml(text).replaceAll("\\n", "<br/>")}</p>
         </div>
         <div style="flex:1"></div>
-        <p class="p" style="opacity:.7">（游戏已结束）</p>
+        <p class="p" style="opacity:.7">（游戏已结束，是的，辞职的意思是辞职，就别回去了吧？）</p>
       </div>
     `);
   }
