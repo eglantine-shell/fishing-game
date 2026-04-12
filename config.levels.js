@@ -3,7 +3,7 @@ window.levels = [
     id: "metro",
     title: "地铁通勤",
     quota: 4,
-    endText: "到站下车",
+    endText: "到站了，下车下车",
     overtimeThresholdRange: [1, 3],
     warningEvent: {
       title: "糟糕",
@@ -30,7 +30,7 @@ window.levels = [
     title: "公司",
     quota: 2,
     quotaIfPrevWarning: 1,
-    endText: "打卡打卡",
+    endText: "到点了，打卡打卡",
     overtimeThresholdRange: [1, 3],
     warningEvent: {
       title: "糟糕",
@@ -50,7 +50,7 @@ window.levels = [
     id: "meeting",
     title: "例会",
     quota: 4,
-    endText: "散会散会",
+    endText: "讲完了，散会散会",
     overtimeThresholdRange: [1, 3],
     warningEvent: {
       title: "糟糕",
@@ -73,7 +73,7 @@ window.levels = [
     id: "pantry",
     title: "茶水间",
     quota: 3,
-    endText: "回去上班",
+    endText: "差不多了，回去上班",
     overtimeThresholdRange: [1, 3],
     warningEvent: {
       title: "糟糕",
@@ -95,11 +95,11 @@ window.levels = [
     id: "desk",
     title: "工位",
     quota: 8,
-    endText: "工作一下",
+    endText: "差不多了，工作一下",
     overtimeThresholdRange: [1, 3],
     warningEvent: {
       title: "糟糕",
-      bodyTemplate: "电脑屏幕在熄灭的一瞬间反射出领导的大脸。",
+      bodyTemplate: "手机在黑屏的一瞬间反射出领导的大脸。",
       tag: "工位险情",
       okText: "见鬼而已",
       quitText: "要不辞职？"
@@ -122,7 +122,7 @@ window.levels = [
     id: "lastHour",
     title: "下班倒计时",
     quota: 3,
-    endText: "冲出公司",
+    endText: "冲出公司，下班下班",
     overtimeThresholdRange: [1, 3],
     warningEvent: {
       title: "糟糕",
