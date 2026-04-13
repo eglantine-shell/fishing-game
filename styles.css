@@ -373,12 +373,12 @@ select{
 
 /* 底部提示区 */
 .hint{
-  min-height: 60px;
+  min-height: 84px;
   display: flex;
   align-items: center;
   color: var(--muted);
-  font-size: 12px;
-  line-height: 1.7;
+  font-size: 14px;
+  line-height: 1.9;
 }
 
 /* 弹窗 */
@@ -502,6 +502,11 @@ strong{
   .view{
     gap: 8px;
   }
+
+  .hint{
+    min-height: 60px;
+  }
+}
 
   .hint{
     min-height: 44px;
