@@ -1,3 +1,11 @@
+@font-face{
+  font-family: "WenQuanYi Bitmap Song 12px";
+  src: url("./WenQuanYi Bitmap Song 12px.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root{
   /* 道林纸系底色 */
   --bg: #f4efdf;
@@ -52,6 +60,7 @@ body{
     var(--bg);
   color: var(--text);
   font-family:
+    "WenQuanYi Bitmap Song 12px",
     "Press Start 2P",
     "PixelMplus12",
     "Fusion Pixel 12px Proportional CN",
@@ -63,6 +72,13 @@ body{
   -webkit-font-smoothing: none;
   text-rendering: geometricPrecision;
   letter-spacing: 0;
+}
+
+button,
+input,
+textarea,
+select{
+  font: inherit;
 }
 
 #app{
@@ -103,6 +119,15 @@ body{
   padding: 16px 20px;
   min-height: 60px;
   align-self: flex-start;
+}
+
+.startLogo{
+  width: min(320px, 72vw);
+  height: auto;
+  display: block;
+  margin: 0 0 8px 0;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
 }
 
 /* 像素窗口 */
