@@ -43,7 +43,7 @@ window.tagsById = {
   stranger: {
     id: "stranger",
     text: "路人",
-    feedback: "你和一个陌生人对视，"
+    feedback: "你和一个陌生人对视，能感觉到，她也特别恨通勤。"
   },
 
   // ---------- 第二关：公司 ----------
