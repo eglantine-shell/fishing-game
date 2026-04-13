@@ -198,6 +198,26 @@ select{
   color: var(--green-900);
 }
 
+.summaryView .h1{
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.summaryView .p{
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.summaryView .btn{
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.summaryView .summaryAwardTitle{
+  font-size: 30px;
+  line-height: 1.7;
+}
+
 /* 按钮 */
 .btn{
   appearance: none;
