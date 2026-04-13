@@ -192,7 +192,7 @@
         }).join("");
   
     setView(`
-      <div class="view">
+      <div class="view summaryView">
         <div class="card">
           <h1 class="h1">今日社畜战报</h1>
           <p class="p">今日摸鱼高达 <b style="color:var(--text)">${total}</b> 次！</p>
@@ -212,6 +212,7 @@
         </div>
         
         <div class="card">
+          <h1 class="h1">就这样，你——</h1>
           <h1 class="h1">${escapeHtml(ending.title)}</h1>
           <p class="p">${escapeHtml(ending.body).replace(/\n/g, "<br/>")}</p>
         </div>
