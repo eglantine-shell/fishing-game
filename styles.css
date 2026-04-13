@@ -125,9 +125,27 @@ select{
   width: min(320px, 72vw);
   height: auto;
   display: block;
-  margin: 0 0 8px 0;
+  margin: 0 auto 8px auto;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
+}
+
+.quitView{
+  justify-content: center;
+}
+
+.quitView .card{
+  width: 100%;
+}
+
+.quitView .h1{
+  font-size: 20px;
+  line-height: 1.6;
+}
+
+.quitView .p{
+  font-size: 16px;
+  line-height: 1.9;
 }
 
 /* 像素窗口 */
