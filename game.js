@@ -285,7 +285,7 @@
   function decideEnding() {
     if (state.warningCount >= 4 && state.finalHourWarning === false) {
       state.endingKey = "ending1";
-    } else if (state.warningCount >= 2 && state.finalHourWarning === false) {
+    } else if (state.warningCount >= 2) {
       state.endingKey = "ending2";
     } else {
       state.endingKey = "ending3";
