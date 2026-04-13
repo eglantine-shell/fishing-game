@@ -84,14 +84,15 @@
   function renderStart() {
     setView(`
       <div class="view startView">
+        <img class="startLogo" src="./logo.png" alt="偷闲中 logo" />
         <div class="card">
           <h1 class="h1">${escapeHtml(copy.start.title)}</h1>
-          <p class="p">${escapeHtml(copy.start.intro).replaceAll("\\n", "<br/>")}</p>
+          <p class="p">${escapeHtml(copy.start.intro).replace(/\n/g, "<br/>")}</p>
         </div>
         <button class="btn primary" id="btnStart">${escapeHtml(copy.start.cta)}</button>
       </div>
     `);
-
+  
     document.getElementById("btnStart").onclick = () => {
       state = resetState();
       renderLevel();
@@ -196,7 +197,7 @@
       <div class="view">
         <div class="card">
           <h1 class="h1">${escapeHtml(ending.title)}</h1>
-          <p class="p">${escapeHtml(ending.body).replaceAll("\\n", "<br/>")}</p>
+          <p class="p">${escapeHtml(ending.body).replace(/\n/g, "<br/>")}</p>
         </div>
 
         <div class="card">
@@ -246,7 +247,7 @@
       <div class="view">
         <div class="card">
           <h1 class="h1">辞职</h1>
-          <p class="p">${escapeHtml(text).replaceAll("\\n", "<br/>")}</p>
+          <p class="p">${escapeHtml(text).replace(/\n/g, "<br/>")}</p>
         </div>
         <div style="flex:1"></div>
         <p class="p" style="opacity:.7">（游戏已结束，是的，辞职的意思是辞职，就别回去了吧？）</p>
