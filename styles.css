@@ -192,6 +192,12 @@ select{
   font-size: 12px;
 }
 
+.summaryAwardTitle{
+  font-size: 28px;
+  line-height: 1.6;
+  color: var(--green-900);
+}
+
 /* 按钮 */
 .btn{
   appearance: none;
