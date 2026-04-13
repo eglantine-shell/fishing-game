@@ -244,7 +244,7 @@
     const text = state.quitFrom === "modal" ? copy.quit.early : copy.quit.after;
 
     setView(`
-      <div class="view">
+      <div class="view quitView">
         <div class="card">
           <h1 class="h1">辞职</h1>
           <p class="p">${escapeHtml(text).replace(/\n/g, "<br/>")}</p>
