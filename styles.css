@@ -487,6 +487,12 @@ strong{
     padding: 14px;
   }
 
+  .hint{
+    min-height: 84px;
+    font-size: 14px;
+    line-height: 1.9;
+  }
+
   .tagAreaEndBtn{
     right: 14px;
     bottom: 14px;
