@@ -373,12 +373,13 @@ select{
 
 /* 底部提示区 */
 .hint{
-  min-height: 84px;
+  min-height: 108px;
   display: flex;
   align-items: center;
   color: var(--muted);
-  font-size: 14px;
-  line-height: 1.9;
+  font-size: 16px;
+  line-height: 2;
+  padding: 14px 16px;
 }
 
 /* 弹窗 */
@@ -488,9 +489,10 @@ strong{
   }
 
   .hint{
-    min-height: 84px;
-    font-size: 14px;
-    line-height: 1.9;
+    min-height: 108px;
+    font-size: 16px;
+    line-height: 2;
+    padding: 14px 16px;
   }
 
   .tagAreaEndBtn{
@@ -510,11 +512,9 @@ strong{
   }
 
   .hint{
-    min-height: 60px;
-  }
-}
-
-  .hint{
-    min-height: 44px;
+    min-height: 72px;
+    font-size: 14px;
+    line-height: 1.8;
+    padding: 10px 12px;
   }
 }
