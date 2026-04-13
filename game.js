@@ -108,7 +108,7 @@
           <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:10px;">
             <div>
               <div class="h1" style="margin:0;">${escapeHtml(level.title)}</div>
-              <div class="p">偷回配额：${state.quota} 点</div>
+              <div class="p">时间配额：${state.quota} 点</div>
             </div>
             <div class="p" id="counterText">已用 ${state.used} / ${state.quota}</div>
           </div>
