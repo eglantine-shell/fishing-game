@@ -181,58 +181,48 @@
   function renderSummary() {
     const total = state.logs.actions.length;
     const warningCount = state.logs.warnings.length;
-    const actionsByLevel = {};
-
-    window.levels.forEach(level => {
-      actionsByLevel[level.id] = 0;
-    });
-
-    state.logs.actions.forEach(action => {
-      actionsByLevel[action.levelId] = (actionsByLevel[action.levelId] || 0) + 1;
-    });
-
     const ending = copy.endings[state.endingKey];
-
+    const award = decideAward();
+  
+    const warningLines = state.logs.warnings.length === 0
+      ? `<p class="p">今天风平浪静，公司暂未注意到你。</p>`
+      : state.logs.warnings.map(item => {
+          const level = window.levels.find(l => l.id === item.levelId);
+          return `<p class="p">${escapeHtml(level ? level.title : item.levelId)}：${escapeHtml(item.warningTag)}</p>`;
+        }).join("");
+  
     setView(`
       <div class="view">
+        <div class="card">
+          <h1 class="h1">今日社畜战报</h1>
+          <p class="p">今日摸鱼高达 <b style="color:var(--text)">${total}</b> 次！</p>
+  
+          <div style="height:14px"></div>
+  
+          <h1 class="h1">惊险瞬间</h1>
+          ${warningLines}
+  
+          <div style="height:14px"></div>
+  
+          <h1 class="h1">综上所述，摸鱼家协会决定授予您：</h1>
+          <div style="height:8px"></div>
+          <div class="summaryAwardTitle">${escapeHtml(award.title)}</div>
+          <div style="height:8px"></div>
+          <p class="p">${escapeHtml(award.desc).replace(/\n/g, "<br/>")}</p>
+        </div>
+        
         <div class="card">
           <h1 class="h1">${escapeHtml(ending.title)}</h1>
           <p class="p">${escapeHtml(ending.body).replace(/\n/g, "<br/>")}</p>
         </div>
-
-        <div class="card">
-          <p class="p">今日偷回时间点：<b style="color:var(--text)">${total}</b></p>
-          <p class="p">警告次数：<b style="color:var(--text)">${warningCount}</b></p>
-        </div>
-
-        <div class="card">
-          <p class="p">今日偷闲分布：</p>
-          <div style="height:8px"></div>
-          ${window.levels.map(level => `
-            <p class="p">${escapeHtml(level.title)}：<b style="color:var(--text)">${actionsByLevel[level.id] || 0}</b></p>
-          `).join("")}
-        </div>
-
-        <div class="card">
-          <p class="p">警告统计：</p>
-          <div style="height:8px"></div>
-          ${
-            state.logs.warnings.length === 0
-              ? `<p class="p">今天风平浪静。公司暂时没有注意到你。</p>`
-              : state.logs.warnings.map(item => {
-                  const level = window.levels.find(l => l.id === item.levelId);
-                  return `<p class="p">${escapeHtml(level ? level.title : item.levelId)}：${escapeHtml(item.warningTag)}</p>`;
-                }).join("")
-          }
-        </div>
-
+  
         <div class="btnRow">
           <button class="btn primary" id="btnRestart">${escapeHtml(copy.summary.restart)}</button>
           <button class="btn" id="btnQuit">${escapeHtml(copy.summary.quit)}</button>
         </div>
       </div>
     `);
-
+  
     document.getElementById("btnRestart").onclick = () => renderStart();
     document.getElementById("btnQuit").onclick = () => {
       state.quitFrom = "summary";
@@ -299,6 +289,40 @@
     } else {
       state.endingKey = "ending3";
     }
+  }
+
+  function decideAward() {
+    const total = state.logs.actions.length;
+    const warningCount = state.logs.warnings.length;
+    const baseTotal = 24;
+  
+    if (warningCount === 1) {
+      const onlyWarning = state.logs.warnings[0];
+      const byLevel = copy.awards.bySingleWarning[onlyWarning.levelId];
+      if (byLevel) return byLevel;
+    }
+  
+    if (total === baseTotal) {
+      return copy.awards.ddlMaster;
+    }
+  
+    if (total < 28 && warningCount === 0) {
+      return copy.awards.stopInTime;
+    }
+  
+    if (total < 28 && warningCount > 0) {
+      return copy.awards.unlucky;
+    }
+  
+    if (total >= 28 && warningCount === 0) {
+      return copy.awards.extreme;
+    }
+  
+    if (total >= 28 && warningCount > 0) {
+      return copy.awards.riverside;
+    }
+  
+    return copy.awards.ordinary;
   }
 
   function onTagClick(level, tag, hintEl, syncProgress, syncEndBtn) {
